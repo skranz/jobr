@@ -1,0 +1,12 @@
+deadline: >
+  Datum bis zu dem der Auftrag erfüllt sein sollte.
+link_task: >
+  HTML Link für Empfänger für Rückmeldung und ggf. Eingaben.
+receiver: >
+  Name des Empfängers. Falls keine Name in der Datenbank
+  eingetragen ist, einfach die ID, typischerweise die Emailadresse.
+  Dieser Platzhalter sollte nur vorsichtig benutzt werden.
+lists:
+  wiwi_koordinatoren: >
+    Empfängerliste: Kurskoordinatoren für WiWi-Kurse. Sollte identisch zu
+    Koordinatoren in Stuko-Software sein.

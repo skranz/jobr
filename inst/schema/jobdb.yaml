@@ -1,0 +1,79 @@
+#library(dbmisc);dbCreateSQLiteFromSchema(update=FALSE,"jobdb.yaml","C:/libraries/stuko/jobr/inst/schema",db.name = "jobdb.sqlite",db.dir = "C:/libraries/stuko/")
+
+job:
+  table:
+    jobid: CHARACTER(16)
+    createtime: DATETIME
+    deadline: DATE
+    # c = created, s = send, d=done
+    jobstate: CHARACTER(1)
+    lang: CHARACTER(2)
+    tpl_title: TEXT
+    tpl_body: TEXT
+    receivers: TEXT
+    givers: TEXT
+    sender: TEXT
+    response_type: CHARACTER(1)
+    input_type: CHARACTER(1)
+    upload_type: CHARACTER(1)
+    response_items_txt: TEXT
+    input_items_txt: TEXT
+    jobcomment: TEXT
+  unique_index:
+    - jobid
+  index:
+    - createtime
+
+jobattach:
+  table:
+    jobid: CHARACTER(16)
+    path: TEXT
+    filename: TEXT
+    mb: DOUBLE
+  index:
+    - jobid
+
+
+jobgiver:
+  table:
+    jobid: CHARACTER(16)
+    giver: VARCHAR(100)
+  index:
+    - jobid
+    - giver
+
+task:
+  table:
+    jobid: CHARACTER(16)
+    taskid: CHARACTER(17)
+    receiver: VARCHAR(100)
+    createtime: DATETIME
+    deadline: DATE
+    # f = fresh, o = open, d=done
+    taskstate: CHARACTER(1)
+    proxies: TEXT
+    comment: TEXT
+    response_ans: TEXT
+    input_ans: TEXT
+  unique_index:
+    - taskid
+  index:
+    - jobid
+    - receiver
+
+taskattach:
+  table:
+    taskid: CHARACTER(16)
+    filename: TEXT
+  index:
+    - taskid
+
+proxy:
+  table:
+    user: VARCHAR(100)
+    proxy: VARCHAR(100)
+    getmail: BOOLEAN
+    editproxy: BOOLEAN
+  unique_index:
+    - proxy, user
+
