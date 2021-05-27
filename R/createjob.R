@@ -1,9 +1,10 @@
 # Functions to check, parse and create new jobs
 # The UI functions are in ui_createjob
 
-new.job.test.email.click = function(formValues, ...) {
-  restore.point("new.job.test.email.click")
-  job = try(parse.and.check.new.job(formValues))
+check.and.send.job.click = function(formValues, ..., app=getApp()) {
+  restore.point("check.and.send.job.click")
+  glob = app$glob
+  job = try(parse.and.check.new.job(formValues, job=app$job))
 
   error = get.check.error(job)
   if (!is.null(error)) {
@@ -11,26 +12,23 @@ new.job.test.email.click = function(formValues, ...) {
     return()
   }
 
-  tasks = job.to.tasks(job)
+  job$tasks = job.to.tasks(job)
 
-  html = colored.html("Ihr Job konnte korrekt eingelesen wurden und eine Beispielemail wurde an ... versendet.",color = c("#000055"))
+  res = try(insert.job.and.tasks(job))
+
+  if (is(res,"try-error")) {
+    error = list(step=0, var=NA, msg=as.character(res),head="Fehler beim Speichern des Jobs in der Datenbank")
+    show.check.error(error)
+    return()
+  }
+
+  html = colored.html("Ihr Job wurde korrekt gespeichert.",color = c("#000055"))
   setUI("checkJobMsg", HTML(html))
 }
 
-create.job.click = function(formValues, ...) {
+new.job.test.email.click = function(formValues, ..., app=getApp()) {
   restore.point("new.job.test.email.click")
-  job = try(parse.and.check.new.job(formValues))
-
-  error = get.check.error(job)
-  if (!is.null(error)) {
-    show.check.error(error)
-    return()
-  }
-
-  tasks = job.to.tasks(job)
-  insert.job.and.tasks(job, tasks)
-
-  html = colored.html("Ihr Job wurde erstellt und in der Datenbank abgespeichert.",color = c("#000055"))
+  html = colored.html("Testemail noch nicht implementiert.",color = c("#000055"))
   setUI("checkJobMsg", HTML(html))
 }
 
@@ -54,7 +52,6 @@ task.from.job = function(rec, job) {
     receiver = rec,
     proxies = get.receiver.proxies(rec),
     comment = "",
-    response_ans = "",
     input_ans = ""
   )
   task
@@ -77,11 +74,8 @@ parse.and.check.new.job = function(formValues,job = lang_fun("empty_job"),..., a
   job = lang_fun("check_tpl_body", job)
 
   # Check particular inputs
-  if (job$response_type == "m") {
-    job$response_items_txt = lang_fun("check_reponse_items_txt", formValues$response_items_txt)
-  }
   if (job$input_type != "n") {
-    job$input_items_txt = lang_fun("check_input_items_txt",(formValues$input_items_txt))
+    job$input_fields = parse_input_txt(formValues$input_fields_txt)
   }
   attach = bind_rows(app$temp.job.attach)
   if (NROW(attach)==0) attach = NULL
@@ -139,28 +133,11 @@ check.job.error = function(step, var, msg, head=NULL) {
 }
 
 
-check_response_items_txt_de = function(txt) {
-  restore.point("check.response.items.txt")
-
-  head = "Es gibt einen Fehler in Schritt 4:"
-
-  txt = sep.lines(txt)
-  txt = trimws(txt)
-  txt = txt[txt!=""]
-  if (length(txt)==0) {
-    check.job.error(step=4,"response_items_txt","Sie haben keine abzuhakenden Punkte angegeben.", head=head)
-  }
-  if (length(txt) > 20) {
-    check.job.error(step=4, var="response_items_txt", msg="Sie können maximal 20 abzuhakende Punkte bei einem Job angeben.", head=head)
-  }
-  return(merge.lines(txt))
-}
-
 parse_persons_txt = function(txt, allow.empty=FALSE, groups=get.groups(), valid.email.domain = get.valid.email.domain()) {
   restore.point("check_persons")
 
   txt = trimws(txt)
-  txt = gsub(" ",",",txt)
+  txt = gsub(" ",",",txt, fixed=TRUE)
   txt = strsplit(txt,",", fixed=TRUE)
   if (length(txt)>0) txt = txt[[1]]
   txt = txt[txt != ""]
@@ -245,38 +222,5 @@ check_further_givers_de = function(job) {
     check.job.error(step=1, var="further_givers", msg=paste0("Sie dürfen nur an Personen mit Emaildomain ", paste0(res$domains, collapse=" oder "), " eintragen. Folgende Personen sind ungültig:",paste0(res$which, collapse=", "), "."), head=head)
   }
   stop("")
-}
-
-
-check_input_items_txt_de = function(txt) {
-  restore.point("check.input.items.txt")
-  txt = sep.lines(txt)
-  txt = trimws(txt)
-  txt = txt[txt!=""]
-  head = "Es gibt einen Fehler in Schritt 4 bei der Spezifikation der Eingabevariablen:"
-
-  if (length(txt)==0) {
-    check.job.error(step=4, var="input_items_txt", msg="Sie haben keine Eingabevariablen angegeben.", head=head)
-  }
-  no.eq = which(!has.substr(txt,"="))
-  if (length(no.eq)>0) {
-    check.job.error(step=4, var="input_items_txt", msg="Nicht alle Zeilen haben ein Gleichheitszeichen (=). Achten Sie auf das Format für jede Zeile: Variablenamen = Beispielwert.", head=head)
-  }
-
-  var.name = trimws(str.left.of(txt, "="))
-  if (any(var.name=="")) {
-    check.job.error(step=4, var="input_items_txt", msg="Nicht alle Zeilen der Eingabevariablen haben ein Gleichheitszeichen (=). Achten Sie auf das Format für jede Zeile: Variablenamen = Beispielwert.",head=head)
-  }
-
-  dupl = unique(var.name[duplicated(var.name)])
-  if (length(dupl)>0) {
-    check.job.error(step=4, var="input_items_txt", msg=paste0("Sie haben die Variable(n) ", paste0(dupl, collapse=", "), " mehrfach angegeben."), head=head)
-  }
-
-  if (length(var.name) > 100) {
-    check.job.error(step=4, var="input_items_txt", msg="Sie können maximal 100 Variablen eintragen lassen.", head=head)
-  }
-  #example = trimws(str.right.of(txt, "="))
-  return(merge.lines(trimws(txt)))
 }
 

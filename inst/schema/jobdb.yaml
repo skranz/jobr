@@ -1,4 +1,4 @@
-#library(dbmisc);dbCreateSQLiteFromSchema(update=FALSE,"jobdb.yaml","C:/libraries/stuko/jobr/inst/schema",db.name = "jobdb.sqlite",db.dir = "C:/libraries/stuko/")
+#library(dbmisc);dbCreateSQLiteFromSchema(update=TRUE,"jobdb.yaml","C:/libraries/jobr/jobr/inst/schema",db.name = "jobdb.sqlite",db.dir = "C:/libraries/jobr/")
 
 job:
   table:
@@ -16,8 +16,9 @@ job:
     response_type: CHARACTER(1)
     input_type: CHARACTER(1)
     upload_type: CHARACTER(1)
-    response_items_txt: TEXT
-    input_items_txt: TEXT
+    input_fields_txt: TEXT
+    input_fields_json: TEXT
+    response_descr: TEXT
     jobcomment: TEXT
   unique_index:
     - jobid
@@ -53,8 +54,7 @@ task:
     taskstate: CHARACTER(1)
     proxies: TEXT
     comment: TEXT
-    response_ans: TEXT
-    input_ans: TEXT
+    values_txt: TEXT
   unique_index:
     - taskid
   index:
@@ -70,10 +70,15 @@ taskattach:
 
 proxy:
   table:
-    user: VARCHAR(100)
-    proxy: VARCHAR(100)
+    user: TEXT
+    proxy: TEXT
     getmail: BOOLEAN
     editproxy: BOOLEAN
   unique_index:
     - proxy, user
 
+groups:
+  table:
+    groupname: TEXT
+    groupdescr: TEXT
+    members: TEXT

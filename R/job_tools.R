@@ -20,11 +20,6 @@ get.valid.email.domain = function() {
   glob[["valid.email.domain"]]
 }
 
-get.groups = function(glob=get.glob()) {
-  groups = glob[["groups"]]
-  groups
-}
-
 lang_fun = function(fun.name, ..., lang=get.lang()) {
   lang.fun = paste0(fun.name,"_", lang)
   if (exists(lang.fun)) {
@@ -64,8 +59,19 @@ get.links.urls = function(link_ids) {
 
 }
 
+format_deadline_de = function(date) {
+  paste0(weekday_de(date), " ", format(date,"%d.%m."))
+}
+
+weekday_de = function(date) {
+  wday = as.integer(format(date, format = "%u"))
+
+  c("Sonntag","Montag","Dienstag","Mittwoch",
+    "Donnerstag","Freitag","Samstag")[wday]
+}
+
 get.date.format = function() {
-  "%a %d.%m.%y"
+  "%a. %d.%m.%y"
 }
 
 get.person.name = function(id) {

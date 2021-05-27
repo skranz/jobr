@@ -1,7 +1,7 @@
 example.ui_reciever = function() {
   setwd("C:/libraries/jobr")
   restore.point.options(display.restore.point=TRUE)
-  res = load.task.with.job("xTlsSKB5kSCkGIlbG")
+  res = load.task.with.job("KFktG0vXIxf37fbL9")
   job = res$job; task = res$task
   db = get.jobdb()
 
@@ -12,7 +12,7 @@ example.ui_reciever = function() {
 
   #rui = receiver_task_ui(job,task)
 
-  rui = tasks_ui(tasks)
+  rui = task_list_ui(tasks)
   app$ui = fluidPage(
     rui
   )
@@ -41,7 +41,7 @@ task_list_ui_de = function(tasks) {
 }
 
 update_task_list_ui_de = function(...) {
-  udpate.task.list.ui
+  update_task_list_ui(...)
 }
 
 update_task_list_ui = function(tasks, container = "tasksTable") {

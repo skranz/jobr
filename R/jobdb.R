@@ -24,33 +24,13 @@ get.jobdb = function(db.dir=getwd(), db.name="jobdb.sqlite", glob=get.glob(), sc
   db
 }
 
-add_json_fields = function(job) {
-  if (is.data.frame(job)) {
-    job$inputs_json = sapply(job$inputs, toJSON)
-    job$values_json = sapply(job$values, toJSON)
-  } else {
-    job$inputs_json = toJSON(job$inputs)
-    job$values_json = toJSON(job$values)
-  }
-
-  job
-}
-
-from_json_fields = function(job) {
-  if (is.data.frame(job)) {
-    job$inputs = lapply(job$inputs_json, fromJSON)
-    job$values = lapply(job$values_json, fromJSON)
-  } else {
-    job$inputs = fromJSON(job$inputs_json)
-    job$values = fromJSON(job$values_json)
-  }
-  job
-}
 
 
 insert.job.and.tasks = function(job, tasks=job$tasks, db = get.jobdb(), delete.prev=TRUE) {
   restore.point("insert.job.and.tasks")
   giver.df = data.frame(jobid = job$jobid, giver = get.job.givers.vec(job))
+
+  job = add_job_json_fields(job)
 
   dbWithTransaction(db,{
     if (delete.prev) {
@@ -65,7 +45,7 @@ insert.job.and.tasks = function(job, tasks=job$tasks, db = get.jobdb(), delete.p
     }
     dbInsert(db,"jobgiver", giver.df)
   })
-  return(invisible())
+  return(invisible(job))
 }
 
 delete.all.from.jobdb = function(db = get.jobdb()) {
@@ -79,21 +59,35 @@ delete.all.from.jobdb = function(db = get.jobdb()) {
   })
 }
 
+load.job.with.tasks = function(jobid, db = get.jobdb()) {
+  restore.point("load.job.with.tasks")
+  job = dbGet(db, "job", list(jobid=jobid)) %>% as.list()
+  job = from_job_json_fields(job)
+  job$tasks = dbGet(db, "task", list(jobid=jobid))
+  job
+}
+
+init.task = function(task) {
+  task = as.list(task)
+  task = from_task_json_fields(task)
+  task = fill.task.placeholder(task)
+  task
+}
+
 load.task.with.job = function(taskid, db = get.jobdb()) {
   restore.point("load.task.with.job")
   task = dbGet(db, "task", list(taskid=taskid))
-  task = from_json_fields(task)
-  job = dbGet(db, "job", list(jobid=task$jobid))
-  job = from_json_fields(job)
-  task$givers = job$givers
-  list(job=job, task=task)
+  if (NROW(task)==0) stop("Task with taskid ", taskid, " is not in the database.")
+  task = as.list(task)
+  task = from_task_json_fields(task)
+  job = dbGet(db, "job", list(jobid=task$jobid)) %>% as.list()
+  job = from_job_json_fields(job)
+  task$job = job
+  task
 }
 
 update.task = function(task, db=get.jobdb()) {
   restore.point("update.task")
-  task = add_json_fields(task)
-  # Since taskid is a unique key we can just
-  # insert with replace mode to update
   dbInsert(db,"task",as.list(task),mode = "replace")
 }
 
@@ -107,25 +101,94 @@ load.tasks.of.proxy = function(proxy,...) {
   load.tasks(receivers,...)
 }
 
-load.tasks = function(receivers, db=get.jobdb(), taskstatus=NULL, startdate = NULL) {
+load.tasks = function(receivers=NULL, db=get.jobdb(), taskstatus=NULL, startdate = NULL) {
   restore.point("load.tasks")
-  param = list(receiver=receivers)
+  if (!is.null(receivers)) {
+    param = list(receiver=receivers)
+  } else {
+    param = list()
+  }
   if (!is.null(taskstatus))
     param = c(param, list(taskstatus=taskstatus))
   where.in = length(receivers) > 1
 
   where.sql = sql.where.code(db, param, where.in=where.in)
-  if (!is.null(start.date)) {
+  if (!is.null(startdate)) {
     starttime = to.db.datetime(startdate)
-    where.sql = paste0(where.sql, " AND createtime >= :starttime")
+    where.sql = paste0(where.sql, " AND task.createtime >= :starttime")
     param = c(param, list(starttime = starttime))
   }
   #sql = paste0("select task.*, job.givers from task
   #INNER JOIN job
   #ON task.jobid = job.jobid ", where.sql)
   #tasks = dbGet(db,"task",param,sql = sql, where.in = where.in)
-  tasks = dbGet(db,c("task","job"),param,fields="*, job.givers",joinby="jobid", where.in = where.in, where.sql=where.sql)
+  if (where.sql == "") param = NULL
 
-  tasks = from_json_fields(tasks)
+  tasks = dbGet(db,c("task","job"),param,fields="task.*, job.givers, job.sender, job.tpl_title",joinby="jobid", where.in = where.in, where.sql=where.sql)
+
+  tasks = from_tasks_json_fields(tasks)
   tasks
+}
+
+json_to_list = function(json, use.lapply=FALSE, simplify=FALSE) {
+  if (use.lapply) {
+    res = lapply(json, json_to_list, use.lapply=FALSE, simplify=simplify)
+    return(res)
+  }
+  if (is.null(json) | is.na(json)) {
+    list()
+  } else{
+    fromJSON(json, simplifyVector=simplify)
+  }
+}
+
+from_job_json_fields = function(job) {
+  job$input_fields = json_to_list(job$input_fields_json, use.lapply = is.data.frame(job))
+  job$input_field_names = unlist(lapply(job$input_fields, function(field) field$var))
+  job
+}
+
+add_job_json_fields = function(job) {
+  if (is.data.frame(job)) {
+    job$input_fields_json = sapply(job$input_fields, toJSON)
+  } else {
+    job$input_fields_json = toJSON(job$input_fields)
+  }
+  job
+}
+
+add_task_json_fields = function(task) {
+  sep = field.sep()
+  if (is.data.frame(task)) {
+    task$values_txt = sapply(task$values, paste0, collapse=sep)
+  } else {
+    task$values_txt = paste(task$values, collapse=sep)
+  }
+  task
+}
+
+job_tasks_values_df = function(job, tasks=job$tasks, field_names=job$input_field_names) {
+  sep = field.sep()
+  empty = paste0(rep(sep, length(field_names)),collapse="")
+  values_txt = tasks$values_txt
+  values_txt[is.na(values_txt)] = empty
+
+  mat = do.call(rbind,strsplit(values_txt,field.sep(),fixed=TRUE))
+  colnames(mat) = field_names
+  as.data.frame(mat)
+}
+
+
+from_tasks_json_fields = function(tasks) {
+  tasks$values = strsplit(tasks$values_txt,field.sep(),fixed=TRUE)
+  tasks
+}
+
+from_task_json_fields = function(task) {
+  if (is.na(task$values_txt)) {
+    task$values = list()
+  } else {
+    task$values = strsplit(task$values_txt,field.sep(),fixed=TRUE)[[1]]
+  }
+  task
 }

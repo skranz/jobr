@@ -1,10 +1,10 @@
-example.ui_reciever = function() {
+example.ui_createjob = function() {
   setwd("C:/libraries/jobr")
   db = get.jobdb()
   app = eventsApp()
 
   app$glob$groups = list(seb="sebastian.kranz@uni-ulm.de")
-   shiny::addResourcePath("jobr",system.file("www", package="jobr"))
+  shiny::addResourcePath("jobr",system.file("www", package="jobr"))
   init.create.job()
   job = lang_fun("empty_job")
   app$valid_senders = "sebastian.kranz@uni-ulm.de"
@@ -13,6 +13,8 @@ example.ui_reciever = function() {
   inner.ui = lang_fun("jobui",job=job)
   app$ui = fluidPage(
     tags$script(src="jobr/createjob.js"),
+    tags$script(src="jobr/helplabel.js"),
+    tags$link(rel = "stylesheet", type = "text/css", href = "jobr/helplabel.css"),
     inner.ui
   )
   viewApp()
@@ -31,6 +33,22 @@ init.create.job.handlers = function() {
   changeHandler("attach_upload", attach.upload.handler)
 
   buttonHandler("newJobTestEmailBtn", new.job.test.email.click)
+  buttonHandler("checkAndSendJobBtn", check.and.send.job.click)
+
+  classEventHandler("preview-fields-icon",event="click", fun = function(formValues,...) {
+    input_fields_txt = getInputValue("input_fields_txt")
+    restore.point("preview.fields.click")
+
+    fields = try(parse_input_txt(input_fields_txt))
+    error = get.check.error(fields)
+    if (!is.null(error)) {
+      show.check.error(error,ui = "previewFieldsUI")
+      return()
+    }
+    fields_ui = input_fields_ui(fields)
+    setUI("previewFieldsUI", wellPanel(fields_ui))
+    dsetUI("previewFieldsUI", wellPanel(fields_ui))
+  })
 
   buttonHandler("jobcreate_nextbtn1", function(...) {
     show.job.create.step(2)
@@ -117,7 +135,10 @@ Viele Grüße,
     input_type = "n",
     upload_type = "n",
     response_items_txt = "Kurse für nächstes Semester überprüft.\nViersemesterplanung überprüft.\nPrüfungstermine für Seminare eingetragen.",
-    input_items_txt = "Name Doktorand = Max Mustermann\nPromotionsbeginn (Jahr) = 2017",
+    input_fields_txt = "Name des Doktoranden = Max Mustermann
+Promotion abgeschlossen? [ ]
+Gebiet [ VWL | BWL | anderes ]
+Beschreibung Promotion+ = Längere Beschreibung.",
     jobcomment = "",
     attach_df = NULL
   )
@@ -152,12 +173,12 @@ jobui1_de = function(job,...) {
     job$sender = valid.senders[1]
   ui = tagList(div(id="new-job-4",
     h3("Schritt 1: Empfänger, Sender, Deadline"),
-    helpText("Bitte Emails oder Gruppennamen per Komma getrennt eintragen. Bei mehreren Empfängern erhält jeder einen separaten Auftrag mit Bitte um separate Rückmeldung."),
-    textAreaInput2("receivers", "Empfänger",value = job$receivers, rows=1,width="100%"),
-    selectInput("sender", "Sender",choices = valid.senders,selected = job$sender, width="100%"),
-    textInput("further_givers","Weitere Personen, die Rückmeldungen sehen können.",value = job$further_givers,  width="100%"),
-    dateInput("deadline","Deadline für Job", value=job$deadline, language="de"),
-    textAreaInput2("jobcomment", "Interne Notizen zum Job (optional)",value = job$jobcomment, rows=2,width="100%"),
+    div(class="help-block", HTML("Für Informationen zu den Eingabefeldern klicken Sie auf das jeweilige &#9432; Symbol.")),
+    textAreaInput2("receivers", "Empfänger",value = job$receivers, rows=1,width="100%",help = "Geben Sie die Emailadressen der Empfänger per Komma getrennt ein. Sie können auch gespeicherte Gruppenbezeichnungen eingeben. Klicken Sie auf das Adresskartensymbol für eine Liste.", label.extras=icon("address-card", class = "receiver-address-book-icon blue-hover")),
+    selectInput2("sender", "Sender",choices = valid.senders,selected = job$sender, width="100%", help = helpText("Offizieller Absender können nur Sie selbst sein, oder eine Person für die sie offizieller Vertreter sind.")),
+    textInput2("further_givers","Weitere Personen, die Rückmeldungen sehen können.",value = job$further_givers,  width="100%", help=helpText("Diese Personen erhalten eine Kopie des Job-Links, können den Fortschritt betrachten und Aktionen durchführen, z. B. eine Errinerungsemail versenden.")),
+    dateInput2("deadline","Deadline für Job", value=job$deadline, language="de", help="Rückmeldungen sind auch noch nach der Deadline möglich, solange sie nicht manuell den Job geschlossen haben."),
+    textAreaInput2("jobcomment", "Interne Notizen zum Job (optional)",value = job$jobcomment, rows=2,width="100%", help="Wenn Sie diesen Job als Vorlage für einen neuen Job nehmen, (sinnvoll bei sich wiederholenden Aufgaben), werden die internen Notizen mitkopiert. Die Notizen sind somit ggf. hilfreich als Gedächtnisstütze."),
     simpleButton("jobcreate_nextbtn1","Weiter")
   ))
   ui
@@ -198,7 +219,7 @@ jobui3_de = function(job,...) {
 jobui4_de = function(job,...) {
   response_descr = c(
     s = "Bestätige wenn Auftrag erledigt",
-    m = "Hake mehrere Punkte separat ab",
+#    m = "Hake mehrere Punkte separat ab",
     n = "Kein Bestätigung erforderlich"
   )
 
@@ -210,24 +231,34 @@ jobui4_de = function(job,...) {
   )
 
   upload_descr = c(
-    n = "Nein",
-    s = "Ja (aber nur eine Datei)"
+    n = "Nein.",
+    s = "Ja, nur eine Datei.",
+    m = "Ja, mehrere Dateien möglich."
   )
 
+  inputHelp = div(class="help-block",HTML(
+"<p>Schreiben Sie jede Eingabevariable in eine Zeile. Sie können verschiedene Eingabtypen definieren:<p>
+<ul>
+<li>Textfeld: Feldname = Beispieltext</li>
+<li>Langer Text: Feldname+ = Beispieltext</li>
+<li>Checkbox: Feldenname [ ]</li>
+<li>Auswahl: Feldname [option1 | option2 | option3 | option4 ]</li>
+</ul>
+Klicken Sie auf das &#128065; für eine Vorschau.
+
+Vorgegeben ist ein Beispiel.
+"))
+
+  descrHelp = helpText("Sie können hier einen kurzen Text schreiben, der erklärt wie die Rückmeldung gemacht werden soll. Falls Sie das schon in der Email erklärt haben, können Sie das Feld einfach leer lassen und es wird ein kurzer Standardtext gezeigt.")
   ui = tagList(div(id="new-job-4",
     h3("Schritt 4: Rückmeldung / Dateneingabe"),
-    #helpText(""),
-    selectInput("response_type","Bestätigung durch Empfänger", swap.names.values(response_descr),selected = job$response_type),
-    div(id="response_items_div", style="display: none;",
-      helpText("Schreiben sie jeden abzuhakenden Punkt in eine neue Zeile. Ein Beispiel ist vorgegeben."),
-      textAreaInput2("response_items_txt", "Bestätigungspunkte",value = job$response_items_txt, rows=3, width="100%", area.style="white-space: nowrap;  overflow: auto;")
-    ),
-    selectInput("input_type","Dateneingabe durch Empfänger", swap.names.values(input_descr),selected = job$input_type),
-    div(id="input_items_div", style="display: none;",
-      helpText("Schreiben Sie für jede Eingabevariable eine Zeile im Format: Variablenname = Beispielwert. Ein Beispiel ist vorgegeben."),
-      textAreaInput2("input_items_txt", "Variablenname = Beispielwert", value=job$input_items_txt,rows=3, area.style="white-space: nowrap;  overflow: auto;")
-    ),
     selectInput("upload_type","Soll Empfänger eine Datei hochladen?", swap.names.values(upload_descr),selected = job$upload_type),
+    selectInput("input_type","Dateneingabe durch Empfänger", swap.names.values(input_descr),selected = job$input_type),
+    div(id="input_fields_div", style="display: none;",
+      textAreaInput2("input_fields_txt", "Definition der Eingabefelder", value=job$input_fields_txt,help=inputHelp,rows=4, area.style="white-space: nowrap;  overflow: auto;", label.extras=icon("eye", class = "preview-fields-icon blue-hover", lib = "font-awesome")),
+      uiOutput("previewFieldsUI")
+    ),
+    textAreaInput2("response_descr", "Erklärungstext", value="",rows=2, area.style="white-space: nowrap;  overflow: auto;", help=descrHelp),
     simpleButton("jobcreate_prevbtn4","Zurück"),
     simpleButton("jobcreate_nextbtn4","Weiter")
   ))
@@ -237,11 +268,11 @@ jobui4_de = function(job,...) {
 }
 
 jobui5_de = function(job,...) {
-  form.ids = c("receivers", "sender","futher_givers","deadline", "tpl_title","tpl_body","response_type","input_type","upload_type","response_items_txt", "input_items_txt")
+  form.ids = c("receivers", "sender","futher_givers","deadline", "tpl_title","tpl_body","response_type","input_type","upload_type","response_items_txt", "input_fields_txt")
   ui = tagList(div(id="new-job-5",
     h3("Schritt 5: Überprüfen und senden"),
     simpleButton("newJobTestEmailBtn","Versende Testemail", form.ids = form.ids),
-    simpleButton("checkAndSendJobBtn","Überprüfe und Sende Job", form.ids = form.ids),
+    simpleButton("checkAndSendJobBtn","Erstelle und Sende Job", form.ids = form.ids),
     uiOutput("checkJobMsg"),
     simpleButton("jobcreate_prevbtn5","Zurück")
   ))
@@ -279,4 +310,36 @@ jobtype_ui_de = function() {
 show.job.create.step = function(step = 1, app=getApp()) {
   panel = paste0("step", step)
   updateNavlistPanel(app$session, "createJobPanel", panel)
+}
+
+check_input_fields_txt_de = function(txt) {
+  restore.point("check.input.items.txt")
+  txt = sep.lines(txt)
+  txt = trimws(txt)
+  txt = txt[txt!=""]
+  head = "Es gibt einen Fehler in Schritt 4 bei der Spezifikation der Eingabevariablen:"
+
+  if (length(txt)==0) {
+    check.job.error(step=4, var="input_fields_txt", msg="Sie haben keine Eingabevariablen angegeben.", head=head)
+  }
+  no.eq = which(!has.substr(txt,"="))
+  if (length(no.eq)>0) {
+    check.job.error(step=4, var="input_fields_txt", msg="Nicht alle Zeilen haben ein Gleichheitszeichen (=). Achten Sie auf das Format für jede Zeile: Variablenamen = Beispielwert.", head=head)
+  }
+
+  var.name = trimws(str.left.of(txt, "="))
+  if (any(var.name=="")) {
+    check.job.error(step=4, var="input_fields_txt", msg="Nicht alle Zeilen der Eingabevariablen haben ein Gleichheitszeichen (=). Achten Sie auf das Format für jede Zeile: Variablenamen = Beispielwert.",head=head)
+  }
+
+  dupl = unique(var.name[duplicated(var.name)])
+  if (length(dupl)>0) {
+    check.job.error(step=4, var="input_fields_txt", msg=paste0("Sie haben die Variable(n) ", paste0(dupl, collapse=", "), " mehrfach angegeben."), head=head)
+  }
+
+  if (length(var.name) > 100) {
+    check.job.error(step=4, var="input_fields_txt", msg="Sie können maximal 100 Variablen eintragen lassen.", head=head)
+  }
+  #example = trimws(str.right.of(txt, "="))
+  return(merge.lines(trimws(txt)))
 }
