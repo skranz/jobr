@@ -9,15 +9,14 @@ example_tasklist_ui = function() {
 
   app$ui = fluidPage(
     jobr.header(),
-    uiOutput("navUI"),
-    uiOutput("innerUI")
+    uiOutput("mainUI")
   )
   set_tasklist_ui()
   viewApp()
 
 }
 
-set_tasklist_ui = function(id="innerUI", app=getApp()) {
+set_tasklist_ui = function(id="mainUI", app=getApp()) {
   ui = lang_fun("tasklist_ui")
   init.tasklist.handlers()
   setUI(id, ui)
@@ -37,10 +36,11 @@ init.tasklist.handlers = function() {
   classEventHandler("showTaskBtn",event = "click",function(data=NULL, app=getApp(), ...) {
     restore.point("showTaskBtn")
     taskid = data$taskid
+
     app$task = task = load.task.with.job(taskid)
-    app$nav = c(app$nav, "tasklist")
+    app$main_tab = "tasklist"
+    app$nav = c(app$nav, "main")
     set_task_ui()
-    set_nav_ui()
   })
 
 

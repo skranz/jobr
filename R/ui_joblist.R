@@ -9,15 +9,14 @@ example_joblist_ui = function() {
 
   app$ui = fluidPage(
     jobr.header(),
-    uiOutput("navUI"),
-    uiOutput("innerUI")
+    uiOutput("mainUI")
   )
   set_joblist_ui()
   viewApp()
 
 }
 
-set_joblist_ui = function(id="innerUI", app=getApp()) {
+set_joblist_ui = function(id="mainUI", app=getApp()) {
   ui = lang_fun("joblist_ui")
   init.joblist.handlers()
   setUI(id, ui)
@@ -38,9 +37,9 @@ init.joblist.handlers = function() {
     restore.point("showJobBtn")
     jobid = data$jobid
     app$job = job = load.job.with.tasks(jobid)
-    app$nav = c(app$nav, "joblist")
+    app$main_tab = "joblist"
+    app$nav = c(app$nav, "main")
     set_showjob_ui()
-    set_nav_ui()
   })
 
 

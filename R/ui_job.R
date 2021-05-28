@@ -11,18 +11,18 @@ example_showjob_ui = function() {
 
   app$ui = fluidPage(
     jobr.header(),
-    uiOutput("navUI"),
-    uiOutput("innerUI")
+    uiOutput("mainUI")
   )
   set_showjob_ui()
   viewApp()
 
 }
 
-set_showjob_ui = function(id="innerUI", job = app$job, app=getApp()) {
+set_showjob_ui = function(id="mainUI", job = app$job, app=getApp()) {
   ui = lang_fun("showjob_ui",job=job)
   init.show.job.handlers()
   setUI(id, ui)
+  set_nav_ui()
 }
 
 init.show.job.handlers = function() {
@@ -80,6 +80,7 @@ showjob_ui_de = function(job, app=getApp()) {
   num.tasks = NROW(tasks)
 
   ui = tagList(
+    uiOutput("navUI"),
     h4(paste0("Job: ",job$tpl_title)),
     p(num.done, " von ", num.tasks, " Empfänger haben Job erledigt. Deadline: ", lang_fun("format_deadline", job$deadline)),
     div(class="input-group",

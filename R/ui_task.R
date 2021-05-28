@@ -21,10 +21,11 @@ example_ui_task = function() {
 }
 
 
-set_task_ui = function(id="innerUI", task = app$task, app=getApp()) {
+set_task_ui = function(id="mainUI", task = app$task, app=getApp()) {
   ui = lang_fun("task_ui",task=task)
   init.task.handlers()
   setUI(id, ui)
+  set_nav_ui()
 }
 
 
@@ -57,6 +58,7 @@ task_ui_de = function(task=app$task, app=getApp()) {
   num.inputs = length(task$job$input_fields)
   taskdone = task$taskstate=="d"
   tagList(
+    uiOutput("navUI"),
     HTML("<h4>Rückmeldung von <b>", task$receiver,"</b> zum Auftrag </h4>"),
     myCollapsePanel(task$title,HTML(body)),
     task_inputs_ui(task),

@@ -1,4 +1,4 @@
-example_tasklist_ui = function() {
+example_main_ui = function() {
   setwd("C:/libraries/jobr")
   db = get.jobdb()
   app = eventsApp()
@@ -32,16 +32,22 @@ init.main.handlers = function() {
 
 }
 
-main_ui_de = function(tasks = app$tasks, app=getApp()) {
+main_ui_de = function(app=getApp()) {
   restore.point("main_ui_de")
   num.open = sum(tasks$taskstate!="d")
+  if (!is.null(app$main_tab)) {
+    selected = app$main_tab
+  } else {
+    selected = NULL
+  }
 
   ui = tagList(
     tabsetPanel(
-      tabPanel("Erhaltene Jobs", uiOutput("tasklistUI")),
-      tabPanel("Verteilte Jobs", uiOutput("joblistUI")),
-      tabPanel("Empfängerlisten"),
-      tabPanel("Einstellungen")
+      selected = selected,
+      tabPanel("Erhaltene Aufträge",value="tasklist", uiOutput("tasklistUI")),
+      tabPanel("Verteilte Jobs", value="joblist", uiOutput("joblistUI")),
+      tabPanel("Empfängerlisten", value="lists"),
+      tabPanel("Einstellungen", value="settings")
     )
   )
   ui

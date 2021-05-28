@@ -23,21 +23,13 @@ nav_el_btn_de = function(nav.el) {
       reset_nav("job")
       app$job = load.job.with.tasks(app$job$jobid)
       set_showjob_ui()
-      set_nav_ui()
+      #set_nav_ui()
     })
-  } else if (nav.el == "joblist") {
-    btn = smallButton("backToJoblistBtn", "Zur Jobliste",style = "margin-right: 1em; margin-top: 4px;")
+  } else if (nav.el == "main") {
+    btn = smallButton("backToJoblistBtn", "Zurück",style = "margin-right: 1em; margin-top: 4px;")
     buttonHandler("backToJoblistBtn", function(..., app=getApp()) {
-      reset_nav("joblist")
-      set_joblist_ui()
-      set_nav_ui()
-    })
-  } else if (nav.el == "tasklist") {
-    btn = smallButton("backToTasklistBtn", "Zur Aufgabenliste",style = "margin-right: 1em; margin-top: 4px;")
-    buttonHandler("backToTasklistBtn", function(..., app=getApp()) {
-      reset_nav("tasklist")
-      set_tasklist_ui()
-      set_nav_ui()
+      reset_nav("main")
+      set_main_ui()
     })
   } else {
     btn = NULL
